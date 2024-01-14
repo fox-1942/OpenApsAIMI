@@ -6,9 +6,9 @@ import app.aaps.database.impl.AppRepository
 import io.reactivex.rxjava3.core.Single
 import java.util.concurrent.TimeUnit
 
-class therapy(private val appRepository: AppRepository) {
+class ModeManager(private val appRepository: AppRepository) {
 
-    private val keywords = listOf("sleep", "sport", "snack", "lowcarb", "highcarb", "meal", "fasting", "stop")
+    private val keywords = listOf("sleep", "sport", "snack", "lowcarb", "highcarb", "meal", "fasting")
 
     var sleepTime = false
     var sportTime = false
@@ -17,23 +17,32 @@ class therapy(private val appRepository: AppRepository) {
     var highCarbTime = false
     var mealTime = false
     var fastingTime = false
-    var stopTime = false
 
     @SuppressLint("CheckResult")
     fun updateStatesBasedOnTherapyEvents() {
-        stopTime = findActiveEvent("stop").blockingGet()
-        if (!stopTime) {
-            sleepTime = findActiveEvent("sleep").blockingGet()
-            sportTime = findActiveEvent("sport").blockingGet()
-            snackTime = findActiveEvent("snack").blockingGet()
-            lowCarbTime = findActiveEvent("lowcarb").blockingGet()
-            highCarbTime = findActiveEvent("highcarb").blockingGet()
-            mealTime = findActiveEvent("meal").blockingGet()
-            fastingTime = findActiveEvent("fasting").blockingGet()
-        } else {
-            resetAllStates()
-            keywords.forEach { clearActiveEvent(it) }
+        sleepTime = findActiveEvent("sleep").blockingGet()
+        sportTime = findActiveEvent("sport").blockingGet()
+        snackTime = findActiveEvent("snack").blockingGet()
+        lowCarbTime = findActiveEvent("lowcarb").blockingGet()
+        highCarbTime = findActiveEvent("highcarb").blockingGet()
+        mealTime = findActiveEvent("meal").blockingGet()
+        fastingTime = findActiveEvent("fasting").blockingGet()
+
+        var foundEvent : Single<String> = findLatestTherapyNote()
+        keywords.forEach {
+            if (it != foundEvent.blockingGet()) {
+                clearActiveEvent(it)
+            }
         }
+    }
+
+    private fun findLatestTherapyNote(): Single<String> {
+        val fromTime = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)
+        return appRepository.getTherapyEventDataFromTime(fromTime, TherapyEvent.Type.NOTE, true)
+            .map { events ->
+                events.filter { individualEvent -> individualEvent.note?.isNotEmpty() ?: false }
+                    .maxByOrNull { it.timestamp }?.note ?: ""
+            }
     }
 
     private fun findActiveEvent(keyword: String): Single<Boolean> {

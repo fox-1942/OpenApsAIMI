@@ -820,7 +820,7 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
             }
         }
         this.enablebasal = sp.getBoolean(R.string.key_enable_basal, false)
-        val therapy = therapy(appRepository = repository)
+        val therapy = ModeManager(appRepository = repository)
         therapy.updateStatesBasedOnTherapyEvents()
         this.sleepTime = therapy.sleepTime
         this.snackTime = therapy.snackTime
@@ -829,7 +829,6 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
         this.highCarbTime = therapy.highCarbTime
         this.mealTime = therapy.mealTime
         this.fastingTime = therapy.fastingTime
-        this.stopTime = therapy.stopTime
         this.mealruntime = therapy.getTimeElapsedSinceLastEvent("meal")
         this.highCarbrunTime = therapy.getTimeElapsedSinceLastEvent("highcarb")
 
