@@ -116,6 +116,7 @@ data class TherapyEvent(
         TEMPORARY_BASAL_END("Temp Basal End", nsNative = true),
 
         // Not supported by NS
+        MEAL1("mealmode"),
         TUBE_CHANGE("Tube Change"),
         FALLING_ASLEEP("Falling Asleep"),
         BATTERY_EMPTY("Battery Empty"),

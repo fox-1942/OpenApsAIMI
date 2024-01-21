@@ -10,24 +10,12 @@ class ModeManager(private val appRepository: AppRepository) {
 
     private val keywords = listOf("sleep", "sport", "snack", "lowcarb", "highcarb", "meal", "fasting")
 
-    var sleepTime = false
-    var sportTime = false
-    var snackTime = false
-    var lowCarbTime = false
-    var highCarbTime = false
-    var mealTime = false
-    var fastingTime = false
+
+
+
 
     @SuppressLint("CheckResult")
     fun updateStatesBasedOnTherapyEvents() {
-        sleepTime = findActiveEvent("sleep").blockingGet()
-        sportTime = findActiveEvent("sport").blockingGet()
-        snackTime = findActiveEvent("snack").blockingGet()
-        lowCarbTime = findActiveEvent("lowcarb").blockingGet()
-        highCarbTime = findActiveEvent("highcarb").blockingGet()
-        mealTime = findActiveEvent("meal").blockingGet()
-        fastingTime = findActiveEvent("fasting").blockingGet()
-
         var foundEvent : Single<String> = findLatestTherapyNote()
         keywords.forEach {
             if (it != foundEvent.blockingGet()) {
@@ -61,13 +49,13 @@ class ModeManager(private val appRepository: AppRepository) {
     }
 
     private fun resetAllStates() {
-        sleepTime = false
+      /*  sleepTime = false
         sportTime = false
         snackTime = false
         lowCarbTime = false
         highCarbTime = false
         mealTime = false
-        fastingTime = false
+        fastingTime = false*/
     }
 
     fun getTimeElapsedSinceLastEvent(keyword: String): Long {

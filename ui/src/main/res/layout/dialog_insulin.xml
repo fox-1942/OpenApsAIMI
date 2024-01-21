@@ -64,6 +64,33 @@
                 android:layout_height="match_parent"
                 android:text="@string/do_not_bolus_record_only" />
 
+            <RadioGroup
+                android:id="@+id/myRadioGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <RadioButton
+                    android:id="@+id/meal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/meal" />
+
+                <RadioButton
+                    android:id="@+id/checkboxOption2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/fasting" />
+
+                <RadioButton
+                    android:id="@+id/checkboxOption3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/highcarb" />
+
+                <!-- Add more RadioButtons as needed -->
+
+            </RadioGroup>
+
         </LinearLayout>
 
         <LinearLayout

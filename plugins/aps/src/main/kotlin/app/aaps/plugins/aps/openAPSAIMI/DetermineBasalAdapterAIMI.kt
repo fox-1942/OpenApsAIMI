@@ -822,7 +822,7 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
         this.enablebasal = sp.getBoolean(R.string.key_enable_basal, false)
         val therapy = ModeManager(appRepository = repository)
         therapy.updateStatesBasedOnTherapyEvents()
-        this.sleepTime = therapy.sleepTime
+       /* this.sleepTime = therapy.sleepTime
         this.snackTime = therapy.snackTime
         this.sportTime = therapy.sportTime
         this.lowCarbTime = therapy.lowCarbTime
@@ -830,7 +830,7 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
         this.mealTime = therapy.mealTime
         this.fastingTime = therapy.fastingTime
         this.mealruntime = therapy.getTimeElapsedSinceLastEvent("meal")
-        this.highCarbrunTime = therapy.getTimeElapsedSinceLastEvent("highcarb")
+        this.highCarbrunTime = therapy.getTimeElapsedSinceLastEvent("highcarb")*/
 
         this.accelerating_up = if (delta > 2 && delta - longAvgDelta > 2) 1 else 0
         this.deccelerating_up = if (delta > 0 && (delta < shortAvgDelta || delta < longAvgDelta)) 1 else 0
@@ -873,12 +873,12 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
         val adjustDynIsf = adjustFactorsdynisfBasedOnBgAndHypo(bg, predictedBg, lastHourTIRLow.toFloat(), dynISFadjust.toFloat())
 
         tdd = when{
-            sportTime -> tdd * 50.0
+          /*  sportTime -> tdd * 50.0
             sleepTime -> tdd * 80.0
             lowCarbTime -> tdd * 85.0
             snackTime -> tdd * 65.0
             highCarbTime -> tdd * 500.0
-            mealTime -> tdd * mealTimeDynISFAdjFactor
+            mealTime -> tdd * mealTimeDynISFAdjFactor*/
             bg > 180 -> tdd * dynISFadjusthyper
             else -> tdd * adjustDynIsf
         }

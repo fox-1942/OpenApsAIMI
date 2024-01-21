@@ -176,7 +176,7 @@
                 android:key="@string/key_prebolus_meal_mode"
                 android:title="@string/prebolus_meal_mode_title"
                 validate:floatmaxNumber="5"
-                validate:floatminNumber="1"
+                validate:floatminNumber="0"
                 validate:testType="floatNumericRange" />
 
             <app.aaps.core.validators.ValidatingEditTextPreference
@@ -187,7 +187,7 @@
                 android:key="@string/key_prebolus_highcarb_mode"
                 android:title="@string/prebolus_highcarb_mode_title"
                 validate:floatmaxNumber="5"
-                validate:floatminNumber="1"
+                validate:floatminNumber="0"
                 validate:testType="floatNumericRange" />
 
             <SwitchPreference

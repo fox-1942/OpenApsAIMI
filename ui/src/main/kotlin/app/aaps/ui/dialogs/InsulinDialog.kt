@@ -7,6 +7,8 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import app.aaps.core.interfaces.automation.Automation
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.configuration.Constants.INSULIN_PLUS1_DEFAULT
@@ -32,15 +34,18 @@ import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.interfaces.utils.SafeParse
 import app.aaps.core.interfaces.utils.T
 import app.aaps.core.main.constraints.ConstraintObject
+import app.aaps.core.main.extensions.fromConstant
 import app.aaps.core.main.utils.extensions.formatColor
 import app.aaps.core.ui.dialogs.OKDialog
 import app.aaps.core.ui.toast.ToastUtils
 import app.aaps.core.utils.HtmlHelper
 import app.aaps.database.entities.TemporaryTarget
+import app.aaps.database.entities.TherapyEvent
 import app.aaps.database.entities.UserEntry
 import app.aaps.database.entities.ValueWithUnit
 import app.aaps.database.impl.AppRepository
 import app.aaps.database.impl.transactions.InsertAndCancelCurrentTemporaryTargetTransaction
+import app.aaps.database.impl.transactions.InsertIfNewByTimestampTherapyEventTransaction
 import app.aaps.ui.R
 import app.aaps.ui.databinding.DialogInsulinBinding
 import app.aaps.ui.extensions.toSignedString
@@ -187,6 +192,31 @@ class InsulinDialog : DialogFragmentWithDate() {
         _binding = null
     }
 
+
+
+    fun submitAimiMode()  {
+        val selectedRadioButtonId: Int = binding.myRadioGroup.checkedRadioButtonId
+
+        if (selectedRadioButtonId != -1) {
+            val selectedRadioButton = binding.root.findViewById<RadioButton>(selectedRadioButtonId)
+            if (selectedRadioButton.id == binding.checkboxOption2.id) {
+
+                val therapyEvent = TherapyEvent(
+                    timestamp = eventTime,
+                    type =  TherapyEvent.Type.MEAL1,
+                    glucoseUnit = TherapyEvent.GlucoseUnit.fromConstant(profileFunction.getUnits())
+                )
+
+                disposable += repository.runTransactionForResult(InsertIfNewByTimestampTherapyEventTransaction(therapyEvent))
+                    .subscribe(
+                        { result -> result.inserted.forEach { aapsLogger.debug(LTag.DATABASE, "Inserted therapy event $it") } },
+                        { aapsLogger.error(LTag.DATABASE, "Error while saving therapy event", it) }
+                    )
+                //uel.log(UserEntry.Action.CAREPORTAL, UserEntry.Sources.Automation, title, valuesWithUnit)
+            }
+        }
+    }
+
     override fun submit(): Boolean {
         if (_binding == null) return false
         val pumpDescription = activePlugin.activePump.pumpDescription
@@ -197,6 +227,10 @@ class InsulinDialog : DialogFragmentWithDate() {
         val unitLabel = if (units == GlucoseUnit.MMOL) rh.gs(app.aaps.core.ui.R.string.mmol) else rh.gs(app.aaps.core.ui.R.string.mgdl)
         val recordOnlyChecked = binding.recordOnly.isChecked
         val eatingSoonChecked = binding.startEatingSoonTt.isChecked
+
+
+        submitAimiMode()
+
 
         if (insulinAfterConstraints > 0) {
             actions.add(
