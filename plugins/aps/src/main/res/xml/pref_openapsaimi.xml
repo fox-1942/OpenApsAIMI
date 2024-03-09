@@ -69,6 +69,11 @@
             android:title="@string/oaps_aimi_mealAdjFact_title" />
 
         <app.aaps.core.validators.AdaptiveDoublePreference
+            android:dialogMessage="@string/oaps_aimi_mealFactor_summary"
+            android:key="@string/key_oaps_aimi_meal_factor"
+            android:title="@string/oaps_aimi_mealFactor_title" />
+
+        <app.aaps.core.validators.AdaptiveDoublePreference
             android:dialogMessage="@string/oaps_aimi_morning_factor_summary"
             android:key="@string/key_oaps_aimi_morning_factor"
             android:title="@string/oaps_aimi_morning_factor_title" />
@@ -82,7 +87,6 @@
             android:dialogMessage="@string/oaps_aimi_evening_factor_summary"
             android:key="@string/key_oaps_aimi_evening_factor"
             android:title="@string/oaps_aimi_evening_factor_title" />
-
 
         <androidx.preference.PreferenceScreen
             android:key="high_BG_settings"
