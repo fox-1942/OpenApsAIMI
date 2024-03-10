@@ -72,6 +72,7 @@ class ActionCarePortalEvent(injector: HasAndroidInjector) : Action(injector) {
             valuesWithUnit.add(ValueWithUnit.Minute(duration.value).takeIf { duration.value != 0 })
         }
         therapyEvent.note = note.value
+
         valuesWithUnit.add(ValueWithUnit.SimpleString(note.value).takeIf { note.value.isNotBlank() })
         disposable += persistenceLayer.insertPumpTherapyEventIfNewByTimestamp(
             therapyEvent = therapyEvent,

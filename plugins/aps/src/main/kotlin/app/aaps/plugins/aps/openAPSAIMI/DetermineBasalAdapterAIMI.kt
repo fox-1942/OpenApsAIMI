@@ -46,6 +46,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.pow
 import kotlin.math.round
+import app.aaps.plugins.aps.openAPSAIMI.Therapy.AimiModeType.*
 
 class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAndroidInjector) : DetermineBasalAdapter {
 
@@ -61,6 +62,9 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
     @Inject lateinit var tddCalculator: TddCalculator
     @Inject lateinit var tirCalculator: TirCalculator
 
+    private var therapy : Therapy = Therapy(persistenceLayer).also {
+        it.updateStatesBasedOnTherapyEvents()
+    }
 
     private var iob = 0.0f
     private var cob = 0.0f
@@ -110,15 +114,6 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
     private var basalSMB = 0.0f
     private var aimilimit = 0.0f
     private var CI = 0.0f
-    private var sleepTime = false
-    private var sportTime = false
-    private var snackTime = false
-    private var lowCarbTime = false
-    private var highCarbTime = false
-    private var mealTime = false
-    private var fastingTime = false
-    private var stopTime = false
-    private var iscalibration = false
     private var mealruntime: Long = 0
     private var highCarbrunTime: Long = 0
     private var intervalsmb = 5
@@ -180,8 +175,8 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
 
         // Appliquer les ajustements en fonction de l'heure de la journée
         smbToGive = when {
-            highCarbTime -> smbToGive * 130.0f
-            mealTime -> (smbToGive * mealfactor).toFloat()
+            therapy.actualMode == Therapy.AimiModeType.HIGHCARB -> smbToGive * 130.0f
+            therapy.actualMode == Therapy.AimiModeType.MEAL -> (smbToGive * mealfactor).toFloat()
             hourOfDay in 1..11 -> smbToGive * adjustedMorningFactor.toFloat()
             hourOfDay in 12..18 -> smbToGive * adjustedAfternoonFactor.toFloat()
             hourOfDay in 19..23 -> smbToGive * adjustedEveningFactor.toFloat()
@@ -199,8 +194,7 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
         logDataToCsv(predictedSMB, smbToGive)
         logDataToCsvHB(predictedSMB, smbToGive)
 
-        val constraintStr = " Max IOB: $maxIob <br/> Max SMB: $maxSMB<br/> sleep: $sleepTime<br/> sport: $sportTime<br/> snack: $snackTime<br/>" +
-            "lowcarb: $lowCarbTime<br/> highcarb: $highCarbTime<br/> meal: $mealTime<br/> fastingtime: $fastingTime<br/> intervalsmb: $intervalsmb<br/>" +
+        val constraintStr = " Max IOB: $maxIob <br/> Max SMB: $maxSMB<br/> Actual mode:${therapy.actualMode.toString()} intervalsmb: $intervalsmb<br/>" +
             "mealruntime: $mealruntime<br/> highCarbrunTime: $highCarbrunTime<br/>"
         val glucoseStr = " bg: $bg <br/> targetBG: $targetBg <br/> futureBg: $predictedBg <br/>" +
             " delta: $delta <br/> short avg delta: $shortAvgDelta <br/> long avg delta: $longAvgDelta <br/>" +
@@ -341,19 +335,19 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
 
     private fun isMealModeCondition(): Boolean{
         val pbolusM: Double = preferences.get(DoubleKey.OApsAIMIMealPrebolus)
-        val modeMealPB = mealruntime in 0..7 && lastBolusSMBUnit != pbolusM.toFloat() && mealTime
+        val modeMealPB = mealruntime in 0..7 && lastBolusSMBUnit != pbolusM.toFloat() && therapy.actualMode== Therapy.AimiModeType.MEAL
         return modeMealPB
     }
     private fun isHighCarbModeCondition(): Boolean{
         val pbolusHC: Double = preferences.get(DoubleKey.OApsAIMIHighCarbPrebolus)
-        val modeHcPB = highCarbrunTime in 0..7 && lastBolusSMBUnit != pbolusHC.toFloat() && highCarbTime
+        val modeHcPB = highCarbrunTime in 0..7 && lastBolusSMBUnit != pbolusHC.toFloat() && therapy.actualMode== Therapy.AimiModeType.HIGHCARB
         return modeHcPB
     }
 
     private fun isCriticalSafetyCondition(): Boolean {
         val aimiIntervalSMB = preferences.get(IntKey.OApsAIMIinterval)
         val aimiInterval = lastsmbtime < aimiIntervalSMB
-        val fasting = fastingTime
+        val fasting = therapy.actualMode== Therapy.AimiModeType.FASTING
         val acceleratingDown = delta < -2 && delta - longAvgDelta < -2 && lastsmbtime < 15
         val decceleratingdown = delta < 0 && (delta > shortAvgDelta || delta > longAvgDelta) && lastsmbtime < 15
         val nosmb = iob >= 2*maxSMB && bg < 110 && delta < 10
@@ -361,7 +355,7 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
         val belowTargetAndDropping = bg < targetBg && delta < -2
         val interval = predictedBg < targetBg && delta > 10 && iob >= maxSMB/2 && lastsmbtime < 10
         val nightTrigger = LocalTime.now().run { (hour in 23..23 || hour in 0..6) } && delta > 10 && cob === 0.0f
-        val isNewCalibration = iscalibration && delta > 10
+        val isNewCalibration = therapy.actualMode == Therapy.AimiModeType.CALIBRATION && delta > 10
         val belowTargetAndStableButNoCob = bg < targetBg - 15 && shortAvgDelta <= 2 && cob <= 5
         val droppingFast = bg < 150 && delta < -5
         val droppingFastAtHigh = bg < 240 && delta < -7
@@ -384,7 +378,7 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
         val sport2 = recentSteps5Minutes >= 200 && averageBeatsPerMinute > averageBeatsPerMinute60
         val sport3 = recentSteps5Minutes >= 200 && recentSteps10Minutes >= 500
         val sport4 = targetBg >= 140
-        val sport5= sportTime
+        val sport5= therapy.actualMode== Therapy.AimiModeType.SPORT
 
         return sport || sport1 || sport2 || sport3 || sport4 || sport5
 
@@ -395,15 +389,16 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
         val belowTarget = bg < targetBg
 
         val safetysmb = recentSteps180Minutes > 1500 && bg < 130
-        if ((safetysmb || sleepTime || snackTime || lowCarbTime ) && lastsmbtime >= 10) {
+        if ((safetysmb ||
+                therapy.actualMode== Therapy.AimiModeType.SLEEP ||
+                therapy.actualMode== Therapy.AimiModeType.SNACK ||
+                therapy.actualMode== Therapy.AimiModeType.LOWCARB ) && lastsmbtime >= 10) {
             result /= 2
             this.intervalsmb = 10
-        }else if ((safetysmb || sleepTime || snackTime) && lastsmbtime < 10){
+        }else if ((safetysmb ||   therapy.actualMode== Therapy.AimiModeType.SLEEP  || therapy.actualMode== Therapy.AimiModeType.SNACK ) && lastsmbtime < 10){
             result = 0.0f
             this.intervalsmb = 10
         }
-
-
 
         if (recentSteps5Minutes > 100 && recentSteps30Minutes > 500 && lastsmbtime < 20) {
             result = 0.0f
@@ -894,20 +889,12 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
             }
         }
         this.enablebasal = preferences.get(BooleanKey.OApsAIMIEnableBasal)
-        val therapy = Therapy(persistenceLayer).also {
-            it.updateStatesBasedOnTherapyEvents()
-        }
-        this.sleepTime = therapy.sleepTime
-        this.snackTime = therapy.snackTime
-        this.sportTime = therapy.sportTime
-        this.lowCarbTime = therapy.lowCarbTime
-        this.highCarbTime = therapy.highCarbTime
-        this.mealTime = therapy.mealTime
-        this.fastingTime = therapy.fastingTime
-        this.stopTime = therapy.stopTime
+
+
+
         this.mealruntime = therapy.getTimeElapsedSinceLastEvent("meal")
         this.highCarbrunTime = therapy.getTimeElapsedSinceLastEvent("highcarb")
-        this.iscalibration = therapy.calibartionTime
+
 
         this.accelerating_up = if (delta > 2 && delta - longAvgDelta > 2) 1 else 0
         this.deccelerating_up = if (delta > 0 && (delta < shortAvgDelta || delta < longAvgDelta)) 1 else 0
@@ -945,12 +932,12 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
         val mealTimeDynISFAdjFactor = (preferences.get(IntKey.OApsAIMImealAdjISFFact) / 100).toDouble()
 
         tdd = when {
-            sportTime -> tdd * 50.0
-            sleepTime -> tdd * 80.0
-            lowCarbTime -> tdd * 85.0
-            snackTime -> tdd * 65.0
-            highCarbTime -> tdd * 400.0
-            mealTime -> tdd * adjustFactorsdynisfBasedOnBgAndHypo(mealTimeDynISFAdjFactor.toFloat())
+            therapy.actualMode== Therapy.AimiModeType.SPORT  -> tdd * 50.0
+            therapy.actualMode== Therapy.AimiModeType.SLEEP  -> tdd * 80.0
+            therapy.actualMode== Therapy.AimiModeType.LOWCARB  -> tdd * 85.0
+            therapy.actualMode== Therapy.AimiModeType.SNACK  -> tdd * 65.0
+            therapy.actualMode== Therapy.AimiModeType.HIGHCARB  -> tdd * 400.0
+            therapy.actualMode== Therapy.AimiModeType.MEAL  -> tdd * adjustFactorsdynisfBasedOnBgAndHypo(mealTimeDynISFAdjFactor.toFloat())
             bg > 180 -> tdd * adjustFactorsdynisfBasedOnBgAndHypo(dynISFadjusthyper.toFloat())
             else -> tdd * adjustFactorsdynisfBasedOnBgAndHypo(dynISFadjust.toFloat())
         }
@@ -1145,13 +1132,13 @@ class DetermineBasalAdapterAIMI internal constructor(private val injector: HasAn
         this.profile.put("current_basal", basalRate)
         this.profile.put("temptargetSet", tempTargetSet)
         this.profile.put("autosens_adjust_targets", preferences.get(BooleanKey.ApsAmaAutosensAdjustTargets))
-        this.profile.put("sleepTime", sleepTime)
-        this.profile.put("sportTime", sportTime)
-        this.profile.put("snackTime", snackTime)
-        this.profile.put("highCarbTime", highCarbTime)
-        this.profile.put("mealTime", mealTime)
-        this.profile.put("fastingTime", fastingTime)
-        this.profile.put("stopTime", stopTime)
+        this.profile.put("sleepTime",  therapy.actualMode== Therapy.AimiModeType.SLEEP )
+        this.profile.put("sportTime",  therapy.actualMode== Therapy.AimiModeType.SPORT )
+        this.profile.put("snackTime",  therapy.actualMode== Therapy.AimiModeType.SNACK )
+        this.profile.put("highCarbTime",  therapy.actualMode== Therapy.AimiModeType.HIGHCARB )
+        this.profile.put("mealTime",  therapy.actualMode== Therapy.AimiModeType.MEAL )
+        this.profile.put("fastingTime",  therapy.actualMode== Therapy.AimiModeType.FASTING )
+        this.profile.put("stopTime",  therapy.actualMode== Therapy.AimiModeType.STOP )
         this.profile.put("Sport0SMB", isSportSafetyCondition())
         this.profile.put("modelFileUAM", modelFileUAM.exists())
         this.profile.put("modelFile",  modelFile.exists())
